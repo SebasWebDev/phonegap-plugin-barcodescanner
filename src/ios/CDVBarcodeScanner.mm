@@ -106,6 +106,7 @@
 
 - (id)initWithProcessor:(CDVbcsProcessor*)processor alternateOverlay:(NSString *)alternateXib;
 - (void)startCapturing;
+- (void)stopCapturing;
 - (UIView*)buildOverlayView;
 - (UIImage*)buildReticleImage;
 - (void)shutterButtonPressed;
@@ -477,7 +478,11 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (NSString*)setUpCaptureSession {
     NSError* error = nil;
-
+    if(self.captureSession != nil) {
+        [self.captureSession stopRunning];
+        self.capturing = NO;
+        self.captureSession = nil;
+    }
     AVCaptureSession* captureSession = [[AVCaptureSession alloc] init];
     self.captureSession = captureSession;
 
@@ -790,6 +795,13 @@ parentViewController:(UIViewController*)parentViewController
     [super viewDidAppear:animated];
 }
 
+//--------------------------------------------------------------------------
+- (void)viewWillDisappear:(BOOL)animated {
+    [self stopCapturing];
+    [super viewWillDisappear:animated];
+}
+
+
 - (AVCaptureVideoOrientation)interfaceOrientationToVideoOrientation:(UIInterfaceOrientation)orientation {
     switch (orientation) {
         case UIInterfaceOrientationPortrait:
@@ -808,6 +820,12 @@ parentViewController:(UIViewController*)parentViewController
 //--------------------------------------------------------------------------
 - (void)startCapturing {
     self.processor.capturing = YES;
+}
+
+//--------------------------------------------------------------------------
+- (void)stopCapturing {
+    self.processor.capturing = NO;
+    [self.processor performSelector:@selector(barcodeScanCancelled) withObject:nil afterDelay:0];
 }
 
 //--------------------------------------------------------------------------
@@ -841,14 +859,14 @@ parentViewController:(UIViewController*)parentViewController
         return nil;
     }
 
-	self.overlayView.autoresizesSubviews = YES;
+    self.overlayView.autoresizesSubviews = YES;
     self.overlayView.autoresizingMask    = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.overlayView.opaque              = NO;
 
-	CGRect bounds = self.view.bounds;
+    CGRect bounds = self.view.bounds;
     bounds = CGRectMake(0, 0, bounds.size.width, bounds.size.height);
 
-	[self.overlayView setFrame:bounds];
+    [self.overlayView setFrame:bounds];
 
     return self.overlayView;
 }
@@ -945,7 +963,9 @@ parentViewController:(UIViewController*)parentViewController
         | UIViewAutoresizingFlexibleBottomMargin)
     ;
 
+
     [overlayView addSubview: self.reticleView];
+        
     [self resizeElements];
     return overlayView;
 }
